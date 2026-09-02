@@ -1,12 +1,13 @@
 # ADR-0001: Kunloria is a policy-as-code engine, not a configurable service
 
 - **Status**: Accepted (2026-09-02)
-- **Supersedes**: the implicit scope of the v0.1.0 MVP
+- **Supersedes**: the implicit scope of the initial MVP
+- **Release status**: unreleased — no tag, no mooncakes/registry publication; the working version in `moon.mod` stays at 0.1.0
 - **Deciders**: repository owner; boundary discussion of 2026-09-02
 
 ## Context
 
-v0.1.0 shipped a *configurable authorization service*: fixed three-role
+The initial MVP (unreleased) implemented a *configurable authorization service*: fixed three-role
 model (admin/reader/writer), group→role mapping injected via `KUNLORIA_*`
 environment variables, OPA-compatible HTTP endpoints. A boundary review
 re-opened the question of what Kunloria *is*: a service whose policy is
@@ -74,19 +75,19 @@ question, revisited on demand. See the capability matrix below.
 
 ### 4. Ceph RGW scope
 
-Unchanged from v0.1.0: OPA-compatible `/v1/data/rgw/authz/allow`, native and
+Unchanged from the MVP: OPA-compatible `/v1/data/rgw/authz/allow`, native and
 stock RGW payload shapes, group-prefix namespaces. Tenant semantics live in
 the user's policy code, not in kunloria.
 
-### 5. Fate of the v0.1 implementation
+### 5. Fate of the MVP implementation
 
 The fixed three-role model and its verified core are **rewritten, not
 migrated**: the combinator library replaces the closed decision table, and
 proof effort moves to (a) engine invariants (Abstain→Deny at the boundary)
 and (b) combinator algebra (identity, associativity, distribution), which
-assembled policies inherit automatically. The v0.1 behavior is reproduced as
-an example (`rgw-tenant`), without API stability promises. The v0.1.0 git
-tag preserves the old implementation.
+assembled policies inherit automatically. The MVP behavior is reproduced as
+an example (`rgw-tenant`), without API stability promises. The pre-rewrite
+implementation remains in git history; nothing has been released.
 
 ### 6. Versioning surface
 
@@ -94,7 +95,9 @@ tag preserves the old implementation.
   combinators, parsers) published on mooncakes;
 - wire contracts (`/validate` AdmissionReview reply, RGW `{"result":bool}`,
   and any future authorization reply) change only in major versions;
-- 0.x makes no stability promises.
+- Until the first public release there are no stability promises at all; the
+  version in `moon.mod` is a working placeholder and is not bumped per
+  iteration.
 
 ## Non-goals
 
@@ -112,7 +115,7 @@ tag preserves the old implementation.
 
 - The README/positioning changes from "configurable policy service" to
   "policy-as-code engine with a proof story".
-- The v0.2 deliverable is the library split, three parsers (admission gains
+- The next-iteration deliverable is the library split, three parsers (admission gains
   `userInfo`/GVR), combinator library with proofs, and production-grade
   examples (`k8s-write-authz`, `rgw-tenant`, `minimal`) each with Dockerfile,
   CI and fork instructions.
