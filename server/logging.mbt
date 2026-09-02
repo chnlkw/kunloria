@@ -5,7 +5,7 @@
 
 ///|
 /// Mutable counter for request ids (single-threaded async event loop).
-let request_counter : Ref[Int] = { val: 0 }
+let request_counter : Ref[Int] = { val: 0, }
 
 ///|
 /// Generate a fresh request id.

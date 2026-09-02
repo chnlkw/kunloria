@@ -16,9 +16,9 @@ pub(all) struct Metrics {
 /// Fresh zeroed metrics.
 pub fn Metrics::new() -> Metrics {
   {
-    requests_total: { val: 0 },
-    allowed_total: { val: 0 },
-    denied_total: { val: 0 },
+    requests_total: { val: 0, },
+    allowed_total: { val: 0, },
+    denied_total: { val: 0, },
   }
 }
 

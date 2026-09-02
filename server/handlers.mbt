@@ -88,7 +88,7 @@ fn bad_request(metrics : Metrics, message : String) -> EndpointResponse {
   metrics.record(false)
   let error : Map[String, Json] = Map([])
   error.set("error", Json::string(message))
-  { status: 400, body: Json::object(error), allowed: false, reason: message }
+  { status: 400, body: Json::object(error), allowed: false, reason: message, }
 }
 
 ///|

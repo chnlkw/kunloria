@@ -65,13 +65,13 @@ pub(all) struct Decision {
 ///|
 /// Construct an allowing decision.
 pub fn Decision::allow(role : Role, reason : String) -> Decision {
-  { allowed: true, role, reason }
+  { allowed: true, role, reason, }
 }
 
 ///|
 /// Construct a denying decision.
 pub fn Decision::deny(role : Role, reason : String) -> Decision {
-  { allowed: false, role, reason }
+  { allowed: false, role, reason, }
 }
 
 ///|
@@ -91,7 +91,7 @@ pub fn PolicyConfig::of_groups(
   reader? : Array[String] = ["reader", "readers"],
   writer? : Array[String] = ["writer", "writers"],
 ) -> PolicyConfig {
-  { admin_groups: admin, reader_groups: reader, writer_groups: writer }
+  { admin_groups: admin, reader_groups: reader, writer_groups: writer, }
 }
 
 ///|
@@ -148,5 +148,5 @@ pub fn PolicyConfig::subject_for(
   id~ : String,
   groups~ : Array[String],
 ) -> Subject {
-  { id, groups, role: self.role_for_groups(groups) }
+  { id, groups, role: self.role_for_groups(groups), }
 }

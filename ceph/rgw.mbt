@@ -80,7 +80,7 @@ pub fn parse_query(body : Json) -> RgwQuery? {
     Some(o) => o
     None => ""
   }
-  Some({ user_id, groups, action, bucket, object })
+  Some({ user_id, groups, action, bucket, object, })
 }
 
 ///|
@@ -109,7 +109,7 @@ fn parse_stock_query(inp : Json) -> RgwQuery? {
     Some("DELETE") => "s3:DeleteObject"
     _ => ""
   }
-  Some({ user_id, groups: [user_id], action, bucket, object: "" })
+  Some({ user_id, groups: [user_id], action, bucket, object: "", })
 }
 
 ///|

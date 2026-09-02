@@ -113,7 +113,7 @@ pub fn evaluate(
       )
     Some(req) => evaluate_request(settings, req)
   }
-  { uid, decision }
+  { uid, decision, }
 }
 
 ///|

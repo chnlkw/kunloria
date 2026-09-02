@@ -190,9 +190,9 @@ test "stock ceph rgw payload is understood" {
     // ... but a policy that grants "john" the reader role allows reads in
     // the namespace named after it, and still denies other namespaces.
     let john_cfg = @auth.PolicyConfig::of_groups(reader=["john"])
-    let own = { ..parsed, bucket: "john" }
+    let own = { ..parsed, bucket: "john", }
     assert_true(@ceph.decide(john_cfg, own).allowed)
-    let foreign = { ..parsed, bucket: "other" }
+    let foreign = { ..parsed, bucket: "other", }
     assert_false(@ceph.decide(john_cfg, foreign).allowed)
   } else {
     fail("stock payload should parse")
