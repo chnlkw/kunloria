@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kunloria-system
+resources:
+  - deployment.yaml
+  - service.yaml
+  - pdb.yaml
+  - nginx-conf.yaml
+  - webhook.yaml
+commonLabels:
+  app.kubernetes.io/part-of: kunloria
+images:
+  - name: ghcr.io/chnlkw/kunloria
+    newTag: 0.1.0

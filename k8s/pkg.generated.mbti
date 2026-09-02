@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "chnlkw/kunloria/k8s"
+
+import {
+  "chnlkw/kunloria/auth",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn evaluate(AdmissionSettings, Json) -> AdmissionVerdict
+
+// Errors
+
+// Types and methods
+pub(all) struct AdmissionSettings {
+  enforce_namespaces : Array[String]
+  risky_cluster_roles : Array[String]
+  admitted_bindings : Array[String]
+} derive(Eq, @debug.Debug)
+pub fn AdmissionSettings::defaults() -> Self
+
+pub(all) struct AdmissionVerdict {
+  uid : String
+  decision : @auth.Decision
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

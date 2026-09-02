@@ -1,0 +1,12 @@
+# deploy/pdb.yaml — keep at least one replica during node drains.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kunloria
+  labels:
+    app.kubernetes.io/name: kunloria
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kunloria

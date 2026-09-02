@@ -1,0 +1,11 @@
+_build/
+.mooncakes/
+target/
+.git/
+.github/
+.githooks/
+docs/
+deploy/
+*.md
+!README.mbt.md
+.DS_Store

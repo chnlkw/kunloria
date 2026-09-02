@@ -1,0 +1,7 @@
+// ceph/moon.pkg — Ceph RGW wire format (OPA-compatible) on top of auth.
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "chnlkw/kunloria/auth",
+}

@@ -1,0 +1,6 @@
+// auth/moon.pkg — the policy package depends only on the verified core.
+
+import {
+  "moonbitlang/core/debug",
+  "chnlkw/kunloria/proof",
+}

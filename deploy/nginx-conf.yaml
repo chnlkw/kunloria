@@ -1,0 +1,27 @@
+# deploy/nginx-conf.yaml — TLS termination sidecar config.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kunloria-nginx-conf
+  labels:
+    app.kubernetes.io/name: kunloria
+data:
+  kunloria.conf: |
+    server {
+      listen 8443 ssl;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_certificate     /etc/nginx/tls/tls.crt;
+      ssl_certificate_key /etc/nginx/tls/tls.key;
+
+      # The Kubernetes API server is the only client.
+      location /validate {
+        proxy_pass http://127.0.0.1:8080/validate;
+        proxy_set_header Content-Type application/json;
+      }
+      location /v1/ {
+        proxy_pass http://127.0.0.1:8080/v1/;
+      }
+      location /healthz {
+        proxy_pass http://127.0.0.1:8080/healthz;
+      }
+    }

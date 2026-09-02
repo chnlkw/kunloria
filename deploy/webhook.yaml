@@ -1,0 +1,42 @@
+# deploy/webhook.yaml — ValidatingWebhookConfiguration.
+#
+# caBundle is a placeholder: run deploy/gen-cert.sh to create the
+# kunloria-tls Secret and print the ready-to-patch caBundle, or let
+# cert-manager inject it (annotation below).
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: kunloria
+  labels:
+    app.kubernetes.io/name: kunloria
+  annotations:
+    # cert-manager alternative:
+    # cert-manager.io/inject-ca-from: kunloria-system/kunloria-tls
+    {}
+webhooks:
+  - name: validate.kunloria.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail # fail closed: if Kunloria is down, requests are rejected
+    timeoutSeconds: 5
+    clientConfig:
+      service:
+        name: kunloria
+        namespace: kunloria-system
+        path: /validate
+        port: 443
+      caBundle: "" # <- base64 of the CA certificate (see gen-cert.sh)
+    namespaceSelector:
+      # Only namespaces labelled kunloria.io/enforce=true are evaluated;
+      # remove the selector to enforce everywhere.
+      matchLabels:
+        kunloria.io/enforce: "true"
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings", "clusterrolebindings"]

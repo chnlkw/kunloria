@@ -1,0 +1,11 @@
+// cmd/main/moon.pkg — executable entry point.
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/core/json",
+  "moonbitlang/moonback",
+  "chnlkw/kunloria",
+  "chnlkw/kunloria/server",
+}
+
+pkgtype(kind: "executable")

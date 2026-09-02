@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "chnlkw/kunloria/proof"
+
+// Values
+pub const KIND_READ : Int = 0
+
+pub const KIND_UNKNOWN : Int = 2
+
+pub const KIND_WRITE : Int = 1
+
+pub const ROLE_ADMIN : Int = 0
+
+pub const ROLE_NONE : Int = 3
+
+pub const ROLE_READER : Int = 1
+
+pub const ROLE_WRITER : Int = 2
+
+pub fn decide(Int, Int, Bool) -> Bool
+
+pub fn valid_kind(Int) -> Bool
+
+pub fn valid_role(Int) -> Bool
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

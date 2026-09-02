@@ -1,0 +1,15 @@
+# deploy/service.yaml — ClusterIP exposing the TLS port for the webhook.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kunloria
+  labels:
+    app.kubernetes.io/name: kunloria
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kunloria
+  ports:
+    - name: https
+      port: 443
+      targetPort: https

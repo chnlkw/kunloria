@@ -1,0 +1,7 @@
+// k8s/moon.pkg — AdmissionReview evaluation (pure, no HTTP).
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "chnlkw/kunloria/auth",
+}

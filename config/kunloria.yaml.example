@@ -1,0 +1,28 @@
+# Target schema of the planned config.yaml loader (roadmap).
+#
+# The MVP reads the equivalent settings from KUNLORIA_* environment
+# variables — see docs/configuration.md. This file documents the schema the
+# YAML loader will accept, so deployments can be written against it today.
+
+listen:
+  host: 0.0.0.0
+  port: 8080
+
+tls:
+  # MVP terminates TLS in the nginx sidecar; when native TLS lands these
+  # paths point at the mounted Secret.
+  cert_file: /certs/tls.crt
+  key_file: /certs/tls.key
+
+policy:
+  roles:
+    admin: [admin]
+    reader: [reader, readers]
+    writer: [writer, writers]
+  admission:
+    enforce_namespaces: [] # empty = everywhere
+    risky_cluster_roles: [cluster-admin]
+    admitted_bindings: [] # "kube-system:deployer"
+
+logging:
+  level: info # info | debug
