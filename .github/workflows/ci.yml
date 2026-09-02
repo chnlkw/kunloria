@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MoonBit
+        run: curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+      - name: moon check
+        run: ~/.moon/bin/moon check
+      - name: moon test
+        run: ~/.moon/bin/moon test
+      - name: moon fmt (diff check)
+        run: |
+          ~/.moon/bin/moon fmt
+          git diff --exit-code -- '*.mbt' || {
+            echo "working tree not formatted; run: moon fmt"; exit 1; }
