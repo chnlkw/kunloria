@@ -1,0 +1,10 @@
+// engine/moon.pkg — policy-author API: queries, decisions, combinators.
+
+import {
+  "moonbitlang/core/debug",
+  "chnlkw/kunloria/verdict",
+}
+
+import {
+  "chnlkw/kunloria/verdict",
+} for "test"

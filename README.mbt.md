@@ -1,124 +1,95 @@
 # Kunloria
 
-**A lightweight, formally-verified policy engine for Kubernetes admission
-control and Ceph RGW authorization — an OPA/Rego alternative written in
-[MoonBit](https://moonbitlang.com).**
+**A policy-as-code engine for Kubernetes admission control and Ceph RGW
+authorization, written in [MoonBit](https://moonbitlang.com). Policies
+are MoonBit functions; the engine is a library you embed and deploy.**
 
 Name: 昆仑 *Kunlun* + *loria* (realm of glory) — the supreme seat of judgment.
 
-Kunloria receives authorization questions over HTTP, answers them from a
-**mathematically verified decision core**, and attaches a human-readable
-audit reason to every verdict:
+Kunloria is *not* a configurable service: there is no policy DSL, no
+policy YAML, no policy environment variables ([ADR-0001](docs/adr/0001-policy-as-code-engine.md)).
+You write one pure function — `fn policy(Query) -> Decision` — assemble
+it from verified combinators if you like, compile it with the engine
+into a single binary/image, and ship it through your GitOps pipeline.
+Unlike OPA's interpreted Rego, your policy is type-checked, unit-tested,
+and (optionally) formally proven before it deploys.
 
-- **Kubernetes**: `POST /validate` consumes `admission.k8s.io/v1`
-  AdmissionReview objects and allows/denies them (privileged containers,
-  risky ClusterRole bindings, namespace scoping).
-- **Ceph RGW**: `POST /v1/data/rgw/authz/allow` speaks the OPA-compatible
-  contract RGW's `rgw_use_opa_authz` integration expects and answers
-  `{"result": true|false}` from group/role/path-prefix rules.
+## What you get
 
-## Why
-
-OPA is powerful but Rego evaluation is hard to predict and even harder to
-prove properties about. Kunloria narrows the policy surface to what
-multi-tenant S3/K8s authorization actually needs — roles (admin/reader/
-writer), group-scoped path prefixes, fail-closed defaults — and verifies the
-core decision table with `moon prove` (Why3 + SMT):
-
-1. a **Reader can never be granted a write**, whatever the input;
-2. an **Admin is always allowed**;
-3. **no non-admin role is allowed outside its group prefix**
-   (cross-group access is unrepresentable).
-
-See [docs/verification.md](docs/verification.md).
+- **`verdict/`** — the decision lattice under proof contracts
+  (`moon prove`, Why3 + SMT): Kleene three-valued conjunction /
+  disjunction / negation with commutativity, associativity, identities,
+  idempotence, De Morgan, distribution — and the boundary invariant
+  *an abstain never finalizes into an allow* (fail-closed).
+- **`engine/`** — the policy-author API: `Query`, `Decision`, predicate
+  atoms (`subject_in_group`, `verb_in`, `kind_is`, `ns_is`,
+  `rgw_path_in_group_ns`, ...) and combinators (`and_`, `or_`, `not_`,
+  `otherwise`, `scoped`) built on the verified lattice.
+- **`k8s/`, `ceph/`** — parsers lowering AdmissionReview (including
+  `userInfo`, GVK/GVR, full object) and both RGW payload shapes into
+  `Query`; malformed input is rejected fail-closed.
+- **`server/`** — moonback HTTP wiring, structured JSON logs, Prometheus
+  counters. Bring a policy; get `/healthz`, `/metrics`, `/validate`
+  (AdmissionReview with 403 + reason on denial) and
+  `/v1/data/rgw/authz/allow` (`{"result": bool}`, OPA-compatible for
+  `rgw_use_opa_authz`).
+- **`examples/`** — three deployable services (see below).
 
 ## Quick start
 
 ```sh
-moon run cmd/main          # serves on 0.0.0.0:8080 by default
+make run                    # runs examples/rgw-tenant on :8080
+make test                   # 48 tests across all packages
+curl -s localhost:8080/healthz
 ```
+
+Write your own policy: copy `examples/minimal`, edit its `policy.mbt`,
+run. See the [policy author guide](docs/policy-author-guide.md).
+
+## Examples
+
+| Example | Shows |
+| --- | --- |
+| `examples/minimal` | the smallest deployable policy (deny everything) |
+| `examples/rgw-tenant` | the classic three-role / group-prefix tenant model with K8s content constraints |
+| `examples/k8s-write-authz` | subject-based write-path authorization assembled from combinators |
 
 ```sh
-# Ceph RGW style
-curl -s localhost:8080/v1/data/rgw/authz/allow -d '{
-  "input": {
-    "user": {"id": "user1", "groups": ["groupA"]},
-    "action": "s3:GetObject",
-    "resource": {"bucket": "b", "object": "groupA/path/to/file"}
-  }}'
-# {"result":true}   with KUNLORIA_READER_GROUPS=groupA
-
-# Kubernetes AdmissionReview style (privileged pod -> denied)
-curl -s localhost:8080/validate -d '{
-  "apiVersion": "admission.k8s.io/v1", "kind": "AdmissionReview",
-  "request": {"uid": "u1", "kind": {"kind": "Pod"}, "operation": "CREATE",
-    "object": {"spec": {"containers": [
-      {"name": "evil", "securityContext": {"privileged": true}}]}}}}'
+docker build --build-arg EXAMPLE=k8s-write-authz -t kunloria-example .
 ```
 
-Every request logs one structured JSON line:
+## Why not OPA/Kyverno/Gatekeeper?
 
-```json
-{"ts":1735689600123,"level":"info","msg":"authz_decision","request_id":"req-...-4",
- "path":"/v1/data/rgw/authz/allow","client_ip":"10.42.0.17","allowed":true,
- "reason":"role reader permits read access within group 'groupA'"}
-```
+Kunloria deliberately narrows the scope (see
+[ADR-0001](docs/adr/0001-policy-as-code-engine.md)): write-path policy
+for Kubernetes admission plus S3 authorization for Ceph RGW, with the
+policy written in a real programming language and the *decision algebra
+formally verified*. Read-path authorization stays with native RBAC —
+the ecosystem consensus (neither Kyverno nor Gatekeeper implements the
+apiserver authorization webhook either).
 
-## Endpoints
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/` | Service banner |
-| GET | `/healthz` | Liveness/readiness probe |
-| GET | `/metrics` | Prometheus text counters (`kunloria_requests_total`, `kunloria_allowed_total`, `kunloria_denied_total`) |
-| POST | `/validate` | Kubernetes AdmissionReview (allow/deny + reason) |
-| POST | `/v1/data/rgw/authz/allow` | Ceph RGW / OPA-compatible boolean decision |
-
-## Configuration
-
-Everything is injected via `KUNLORIA_*` environment variables (no external
-database): listener, group→role mapping, admission settings. Full table in
-[docs/configuration.md](docs/configuration.md); planned `config.yaml` schema
-in [config/kunloria.yaml.example](config/kunloria.yaml.example).
-
-## Repository layout
+## Layout
 
 ```
-proof/   verified decision core (.mbt + .mbtp, moon prove)
-auth/    roles, subjects, authorize() on top of the core
-k8s/     AdmissionReview parsing + admission checks
-ceph/    RGW payload parsing (native + stock Ceph shapes)
-server/  moonback HTTP wiring, structured logging, metrics
-cmd/main entry point
-deploy/  Kubernetes manifests (TLS sidecar, webhook, PDB)
-docs/    verification / deployment / RGW / configuration guides
+verdict/    verified decision lattice (.mbt + .mbtp, moon prove)
+engine/     Query / Decision / atoms / combinators
+k8s/        AdmissionReview parser + reply + content predicates
+ceph/       RGW payload parser (native + stock) + reply
+server/     HTTP wiring, logging, metrics
+examples/   three deployable policy services (policy lib + main)
+deploy/     Kubernetes manifests (webhook, TLS sidecar, PDB)
+docs/       adr, author guide, verification, deployment, rgw integration
 ```
 
-## Development
+## Docs
 
-```sh
-make check    # moon check
-make test     # moon test (39 tests: policy table, payloads, endpoints)
-make prove    # moon prove proof (needs why3 + z3, see docs/verification.md)
-make build    # native release binary
-make docker-build
-```
+- [Policy author guide](docs/policy-author-guide.md) — start here
+- [ADR-0001: policy-as-code engine](docs/adr/0001-policy-as-code-engine.md)
+- [Verification](docs/verification.md) — what is proved and how to run it
+- [Deployment](docs/deployment.md) — webhook wiring, TLS, HA
+- [Ceph RGW integration](docs/ceph-rgw.md) — `rgw_use_opa_authz` setup
 
-## Deployment
+## Status
 
-TLS 1.2+ is terminated by an nginx sidecar backed by a Kubernetes Secret
-(cert-manager friendly); 2 replicas with pod anti-affinity, a
-PodDisruptionBudget, and `failurePolicy: Fail` keep the cluster fail-closed.
-See [docs/deployment.md](docs/deployment.md) and the manifests under
-[deploy/](deploy/).
-
-## Roadmap
-
-- [ ] Native TLS listener (`moonbitlang/async/tls` OpenSSL binding)
-- [ ] `config.yaml` loader for the documented schema
-- [ ] Latency histograms on `/metrics`
-- [ ] Additional admission checks (hostPath, hostNetwork, image registries)
-
-## License
-
-Apache-2.0
+Pre-release; the API may change without notice. Tests: `make test`.
+Prove the lattice: `make prove` (needs why3 + z3).

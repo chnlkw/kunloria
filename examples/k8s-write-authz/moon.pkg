@@ -1,0 +1,11 @@
+// examples/k8s-write-authz/moon.pkg — the policy library for the k8s-write-authz example.
+
+import {
+  "chnlkw/kunloria/engine",
+  "chnlkw/kunloria/k8s",
+}
+
+import {
+  "moonbitlang/core/json",
+  "chnlkw/kunloria/engine",
+} for "test"

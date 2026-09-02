@@ -1,4 +1,4 @@
-// server/moon.pkg — HTTP front end wiring moonback to the policy packages.
+// server/moon.pkg — HTTP front end wiring moonback to a user policy.
 
 import {
   "moonbitlang/core/debug",
@@ -7,13 +7,7 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/moonback",
   "chnlkw/kunloria",
-  "chnlkw/kunloria/auth",
   "chnlkw/kunloria/ceph",
+  "chnlkw/kunloria/engine",
   "chnlkw/kunloria/k8s",
 }
-
-import {
-  "moonbitlang/core/json",
-  "chnlkw/kunloria",
-  "chnlkw/kunloria/auth",
-} for "test"

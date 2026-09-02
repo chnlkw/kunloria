@@ -1,29 +1,38 @@
 # Configuration
 
-Kunloria follows the "no external database" constraint: all policy data is
-injected at startup. The MVP reads environment variables; `config.yaml`
-loading is planned (tracked in the roadmap) — `config/kunloria.yaml.example`
-documents the target schema.
+Kunloria has almost nothing to configure, by design
+([ADR-0001](adr/0001-policy-as-code-engine.md)): **the policy is code**,
+compiled into the deployment. There is no policy DSL, no policy YAML,
+and no policy-bearing environment variable. Roles, groups, namespaces
+and content constraints are constants in `policy.mbt`; changing them is
+a code change that ships through your GitOps pipeline.
 
-## Environment variables
+## Runtime environment variables
+
+The only knobs are deployment parameters, read by `examples/*/main`:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `KUNLORIA_HOST` | `0.0.0.0` | Listen address |
 | `KUNLORIA_PORT` | `8080` | Listen port |
 | `KUNLORIA_LOG_LEVEL` | `info` | `info` or `debug` |
-| `KUNLORIA_ADMIN_GROUPS` | `admin` | Comma-separated groups granting the Admin role |
-| `KUNLORIA_READER_GROUPS` | `reader,readers` | Groups granting the Reader role |
-| `KUNLORIA_WRITER_GROUPS` | `writer,writers` | Groups granting the Writer role |
-| `KUNLORIA_ENFORCE_NAMESPACES` | *(empty)* | When set, only these namespaces are evaluated; others are allowed as "skipped" |
-| `KUNLORIA_RISKY_CLUSTER_ROLES` | `cluster-admin` | ClusterRoles that trigger the binding check |
-| `KUNLORIA_ADMITTED_BINDINGS` | *(empty)* | `<namespace>:<serviceaccount>` entries allowed to receive a risky role |
 
-## Semantics
+Missing or malformed values fall back to the defaults.
 
-* A user's group is both its **role** (via the lists above) and its
-  **namespace prefix**: resources are group-scoped by construction.
-* Most privileged role wins when a user carries several mapped groups
-  (Admin > Writer > Reader); unmapped groups grant nothing.
-* Everything not explicitly allowed is denied (fail closed), including
-  malformed payloads and unknown verbs.
+## Where the policy knobs went
+
+The pre-rewrite service exposed `KUNLORIA_ADMIN_GROUPS`,
+`KUNLORIA_READER_GROUPS`, `KUNLORIA_WRITER_GROUPS`,
+`KUNLORIA_ENFORCE_NAMESPACES`, `KUNLORIA_RISKY_CLUSTER_ROLES` and
+`KUNLORIA_ADMITTED_BINDINGS`. All of them became **constants owned by
+`examples/rgw-tenant/policy.mbt`** (`admin_groups()`, `reader_groups()`,
+`writer_groups()`, `risky_roles()`, `admitted_bindings()`) — that
+example reproduces the old behavior exactly. Copy it and make the lists
+yours.
+
+## Semantics that never changed
+
+* Most privileged role wins (admin > writer > reader); unmapped groups
+  grant nothing.
+* Everything not explicitly allowed is denied — fail closed — including
+  malformed payloads, unknown verbs, and any policy that abstains.

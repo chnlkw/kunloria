@@ -2,27 +2,33 @@
 package "chnlkw/kunloria/k8s"
 
 import {
-  "chnlkw/kunloria/auth",
-  "moonbitlang/core/debug",
+  "chnlkw/kunloria/engine",
 }
 
 // Values
-pub fn evaluate(AdmissionSettings, Json) -> AdmissionVerdict
+pub fn binding_grants_risky_role(Json, Array[String]) -> Bool
+
+pub fn classify_admission_verb(String) -> @engine.AccessKind
+
+pub fn parse_review(Json) -> Review?
+
+pub fn pluralize(String) -> String
+
+pub fn pod_has_privileged_container(Json) -> Bool
+
+pub fn reply(String, @engine.Decision) -> Json
+
+pub fn target_kind_is(@engine.Query, String) -> Bool
+
+pub fn targets_pod(@engine.Query) -> Bool
 
 // Errors
 
 // Types and methods
-pub(all) struct AdmissionSettings {
-  enforce_namespaces : Array[String]
-  risky_cluster_roles : Array[String]
-  admitted_bindings : Array[String]
-} derive(Eq, @debug.Debug)
-pub fn AdmissionSettings::defaults() -> Self
-
-pub(all) struct AdmissionVerdict {
+pub(all) struct Review {
   uid : String
-  decision : @auth.Decision
-} derive(Eq, @debug.Debug)
+  query : @engine.Query
+}
 
 // Type aliases
 

@@ -1,0 +1,11 @@
+// examples/rgw-tenant/moon.pkg — the policy library for the rgw-tenant example.
+
+import {
+  "chnlkw/kunloria/engine",
+  "chnlkw/kunloria/k8s",
+}
+
+import {
+  "moonbitlang/core/json",
+  "chnlkw/kunloria/engine",
+} for "test"

@@ -39,14 +39,18 @@ pub fn log_decision(
   request_id : String,
   path : String,
   client_ip : String,
-  allowed : Bool,
+  allowed : Bool?,
   reason : String,
 ) -> Unit {
   let fields : Map[String, Json] = Map([])
   fields.set("request_id", Json::string(request_id))
   fields.set("path", Json::string(path))
   fields.set("client_ip", Json::string(client_ip))
-  fields.set("allowed", Json::boolean(allowed))
+  if allowed is Some(b) {
+    fields.set("allowed", Json::boolean(b))
+  } else {
+    fields.set("allowed", Json::string("error"))
+  }
   fields.set("reason", Json::string(reason))
   log_json("info", "authz_decision", fields)
 }

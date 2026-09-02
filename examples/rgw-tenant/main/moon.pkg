@@ -1,0 +1,11 @@
+// examples/rgw-tenant/main/moon.pkg — entry point for the rgw-tenant example.
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/core/json",
+  "moonbitlang/moonback",
+  "chnlkw/kunloria/server",
+  "chnlkw/kunloria/examples/rgw-tenant" @app,
+}
+
+pkgtype(kind: "executable")

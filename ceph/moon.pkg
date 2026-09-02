@@ -1,7 +1,10 @@
-// ceph/moon.pkg — Ceph RGW wire format (OPA-compatible) on top of auth.
+// ceph/moon.pkg — RGW payload parser: wire JSON → engine Query.
 
 import {
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
-  "chnlkw/kunloria/auth",
+  "chnlkw/kunloria/engine",
 }
+
+import {
+  "moonbitlang/core/json",
+} for "test"

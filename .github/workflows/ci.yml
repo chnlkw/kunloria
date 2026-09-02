@@ -18,6 +18,11 @@ jobs:
         run: ~/.moon/bin/moon check
       - name: moon test
         run: ~/.moon/bin/moon test
+      - name: build examples (native)
+        run: |
+          ~/.moon/bin/moon build --target native examples/minimal/main
+          ~/.moon/bin/moon build --target native examples/rgw-tenant/main
+          ~/.moon/bin/moon build --target native examples/k8s-write-authz/main
       - name: moon fmt (diff check)
         run: |
           ~/.moon/bin/moon fmt

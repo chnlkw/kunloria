@@ -2,23 +2,22 @@
 package "chnlkw/kunloria/server"
 
 import {
-  "chnlkw/kunloria/auth",
-  "chnlkw/kunloria/k8s",
+  "chnlkw/kunloria/engine",
   "moonbitlang/core/debug",
   "moonbitlang/core/ref",
   "moonbitlang/moonback",
 }
 
 // Values
-pub fn banner() -> String
+pub fn banner() -> Json
 
-pub fn handle_rgw_allow(AppSettings, Metrics, String) -> EndpointResponse
+pub fn handle_rgw_allow((@engine.Query) -> @engine.Decision, String) -> EndpointResponse
 
-pub fn handle_validate(AppSettings, Metrics, String) -> EndpointResponse
+pub fn handle_validate((@engine.Query) -> @engine.Decision, String) -> EndpointResponse
 
 pub fn log_debug(String, Map[String, Json]) -> Unit
 
-pub fn log_decision(String, String, String, Bool, String) -> Unit
+pub fn log_decision(String, String, String, Bool?, String) -> Unit
 
 pub fn log_json(String, String, Map[String, Json]) -> Unit
 
@@ -26,7 +25,7 @@ pub fn log_request(String, String, String, String) -> Unit
 
 pub fn next_request_id() -> String
 
-pub fn root_module(AppSettings, Metrics) -> @moonback.Module
+pub fn root_module((@engine.Query) -> @engine.Decision, Metrics) -> @moonback.Module
 
 // Errors
 
@@ -34,16 +33,15 @@ pub fn root_module(AppSettings, Metrics) -> @moonback.Module
 pub(all) struct AppSettings {
   host : String
   port : Int
-  policy : @auth.PolicyConfig
-  admission : @k8s.AdmissionSettings
   log_level : String
 } derive(Eq, @debug.Debug)
+pub fn AppSettings::defaults() -> Self
 pub fn AppSettings::from_env() -> Self
 
 pub(all) struct EndpointResponse {
   status : Int
   body : Json
-  allowed : Bool
+  allowed : Bool?
   reason : String
 } derive(Eq, @debug.Debug)
 

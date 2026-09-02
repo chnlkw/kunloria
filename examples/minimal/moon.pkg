@@ -1,0 +1,9 @@
+// examples/minimal/moon.pkg — the policy library for the minimal example.
+
+import {
+  "chnlkw/kunloria/engine",
+}
+
+import {
+  "chnlkw/kunloria/engine",
+} for "test"

@@ -1,115 +1,110 @@
-// server/handlers_test.mbt — integration tests with simulated request
-// bodies: the full parse -> decide -> respond pipeline without sockets.
+// server/handlers_test.mbt — endpoint behavior around a fixed test policy.
 
 ///|
-fn settings() -> @server.AppSettings {
-  {
-    host: "127.0.0.1",
-    port: 8080,
-    policy: @auth.PolicyConfig::of_groups(admin=["admin"], reader=["groupA"], writer=[
-      "groupB",
-    ]),
-    admission: {
-      enforce_namespaces: [],
-      risky_cluster_roles: ["cluster-admin"],
-      admitted_bindings: [],
-    },
-    log_level: "info",
-  }
+/// Test policy: platform group allows everything; everyone else is denied.
+fn test_policy(q : @engine.Query) -> @engine.Decision {
+  @engine.otherwise(@engine.subject_in_group("platform"), @engine.deny_all)(q)
 }
 
 ///|
-fn admission_body() -> String {
-  let text =
-    #|{
-    #|  "apiVersion": "admission.k8s.io/v1",
-    #|  "kind": "AdmissionReview",
-    #|  "request": {
-    #|    "uid": "e2e-1",
-    #|    "kind": {"group": "", "version": "v1", "kind": "Pod"},
-    #|    "namespace": "default",
-    #|    "operation": "CREATE",
-    #|    "object": {
-    #|      "spec": {"containers": [
-    #|        {"name": "evil", "image": "x", "securityContext": {"privileged": true}}
-    #|      ]}
-    #|    }
-    #|  }
-    #|}
-  text
+fn review_body(group : String) -> String {
+  let template =
+    $|{"apiVersion": "admission.k8s.io/v1", "kind": "AdmissionReview",
+    $| "request": {"uid": "u-42", "verb": "CREATE",
+    $|   "userInfo": {"username": "dev", "groups": ["\{group}"]},
+    $|   "namespace": "prod",
+    $|   "kind": {"group": "", "version": "v1", "kind": "Pod"},
+    $|   "object": {"spec": {"containers": []}}}}
+  template.to_string()
 }
 
 ///|
-test "validate denies a privileged pod end to end" {
-  let m = @server.Metrics::new()
-  let r = @server.handle_validate(settings(), m, admission_body())
-  assert_eq(r.status, 200)
-  assert_false(r.allowed)
-  // Response envelope is a well-formed AdmissionReview.
-  let obj = if r.body is Object(map) {
-    map
+test "validate: platform member admitted, envelope echoes uid" {
+  let res = @server.handle_validate(test_policy, review_body("platform"))
+  assert_eq(res.status, 200)
+  assert_eq(res.allowed, Some(true))
+  if res.body is { "response": { "uid": String(uid), "allowed": True, .. }, .. } {
+    assert_eq(uid, "u-42")
   } else {
-    fail("response is not an object")
+    fail("envelope should echo uid with allowed:true")
   }
-  assert_true(obj.get("apiVersion") is Some(String("admission.k8s.io/v1")))
-  assert_true(obj.get("kind") is Some(String("AdmissionReview")))
-  if obj.get("response") is Some(Object(response)) {
-    assert_true(response.get("uid") is Some(String("e2e-1")))
-    assert_true(response.get("allowed") is Some(False))
-    if response.get("status") is Some(Object(status)) {
-      assert_true(
-        status.get("message")
-        is Some(String("privileged containers are forbidden: evil")),
-      )
-    } else {
-      fail("denied response must carry a status")
-    }
+}
+
+///|
+test "validate: non-member denied with 403 status message" {
+  let res = @server.handle_validate(test_policy, review_body("team-a"))
+  assert_eq(res.status, 200)
+  assert_eq(res.allowed, Some(false))
+  if res.body
+    is {
+      "response": {
+        "uid": String(uid),
+        "allowed": False,
+        "status": { "message": String(_), .. },
+        ..
+      },
+      ..
+    } {
+    assert_eq(uid, "u-42")
   } else {
-    fail("response field missing")
+    fail("denial should carry a status message")
   }
-  // Metrics recorded one denial.
-  assert_true(m.render().contains("kunloria_denied_total 1"))
 }
 
 ///|
-test "validate answers 400 on malformed JSON" {
-  let m = @server.Metrics::new()
-  let r = @server.handle_validate(settings(), m, "not json {")
-  assert_eq(r.status, 400)
-  assert_false(r.allowed)
-  assert_true(r.body is Object(map) && map.get("error") is Some(_))
+test "validate: malformed review answers 400" {
+  let res = @server.handle_validate(test_policy, "{\"request\": {}}")
+  assert_eq(res.status, 400)
+  assert_eq(res.allowed, None)
+  let res2 = @server.handle_validate(test_policy, "not json at all")
+  assert_eq(res2.status, 400)
 }
 
 ///|
-test "rgw allow endpoint answers OPA-style result" {
-  let m = @server.Metrics::new()
-  let ok = @server.handle_rgw_allow(
-    settings(),
-    m,
-    "{\"input\":{\"user\":{\"id\":\"u1\",\"groups\":[\"groupA\"]},\"action\":\"s3:GetObject\",\"resource\":{\"bucket\":\"b\",\"object\":\"groupA/f\"}}}",
-  )
-  assert_eq(ok.status, 200)
-  assert_true(ok.allowed)
-  assert_true(ok.body is Object(map) && map.get("result") is Some(True))
-  let deny = @server.handle_rgw_allow(
-    settings(),
-    m,
-    "{\"input\":{\"user\":{\"id\":\"u1\",\"groups\":[\"groupA\"]},\"action\":\"s3:PutObject\",\"resource\":{\"bucket\":\"b\",\"object\":\"groupA/f\"}}}",
-  )
-  assert_eq(deny.status, 200)
-  assert_false(deny.allowed)
-  assert_true(deny.body is Object(map) && map.get("result") is Some(False))
+test "rgw: native payload member allows, outsider denies" {
+  let member_payload = (
+    $|{"input": {"user": {"id": "u", "groups": ["platform"]},
+    $| "action": "s3:GetObject", "resource": {"bucket": "any", "object": "o"}}}
+  ).to_string()
+  let res = @server.handle_rgw_allow(test_policy, member_payload)
+  assert_eq(res.status, 200)
+  assert_eq(res.allowed, Some(true))
+  if res.body is { "result": True, .. } {
+    ()
+  } else {
+    fail("member should get result:true")
+  }
+  let outsider = (
+    $|{"input": {"user": {"id": "u", "groups": ["team-a"]},
+    $| "action": "s3:GetObject", "resource": {"bucket": "any", "object": "o"}}}
+  ).to_string()
+  let res2 = @server.handle_rgw_allow(test_policy, outsider)
+  assert_eq(res2.allowed, Some(false))
+  if res2.body is { "result": False, .. } {
+    ()
+  } else {
+    fail("outsider should get result:false")
+  }
 }
 
 ///|
-test "rgw endpoint rejects payloads without a user" {
-  let m = @server.Metrics::new()
-  let r = @server.handle_rgw_allow(settings(), m, "{\"input\": {}}")
-  assert_eq(r.status, 400)
-  assert_false(r.allowed)
+test "rgw: malformed payload answers 400" {
+  let res = @server.handle_rgw_allow(test_policy, "{\"input\": {}}")
+  assert_eq(res.status, 400)
+  assert_eq(res.allowed, None)
 }
 
 ///|
-test "banner mentions the version" {
-  assert_true(@server.banner().contains(@kunloria.KUNLORIA_VERSION))
+test "banner names the service and version" {
+  if @server.banner()
+    is {
+      "service": String("kunloria"),
+      "version": String(_),
+      "policy": String(_),
+      ..
+    } {
+    ()
+  } else {
+    fail("banner should identify the service")
+  }
 }

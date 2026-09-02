@@ -1,0 +1,8 @@
+// verdict/moon.pkg — the formally verified three-valued decision lattice.
+//
+// Kept dependency-free on purpose (ints only): this is the package
+// `moon prove` reasons about, mirroring the ADR-0001 engine invariants.
+
+options(
+  "proof-enabled": true,
+)

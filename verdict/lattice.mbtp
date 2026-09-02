@@ -1,0 +1,114 @@
+// verdict/lattice.mbtp — logic side: lattice algebra + fail-closed exit.
+//
+// Properties proved over the effect codes (0 = allow, 1 = deny, 2 = abstain):
+// commutativity, associativity, identities, idempotence, involution,
+// De Morgan, distribution — and the engine boundary invariant: an abstain
+// never finalizes into an allow.
+
+///| `code` is the allow effect.
+predicate is_allow(code : Int) {
+  code == 0
+}
+
+///| `code` is the deny effect.
+predicate is_deny(code : Int) {
+  code == 1
+}
+
+///| `code` is neither allow nor deny, i.e. abstain.
+predicate non_allow(code : Int) {
+  code != 0
+}
+
+///| `result` is the Kleene conjunction of `a` and `b`.
+predicate and_ok(a : Int, b : Int, result : Int) {
+  (is_deny(a) → is_deny(result)) && (is_deny(b) → is_deny(result)) && (is_allow(a) && is_allow(b) → is_allow(result)) && (a == 2 → result == 2) && (b == 2 → result == 2)
+}
+
+///| `result` is the Kleene disjunction of `a` and `b`.
+predicate or_ok(a : Int, b : Int, result : Int) {
+  (is_allow(a) → is_allow(result)) && (is_allow(b) → is_allow(result)) && (is_deny(a) && is_deny(b) → is_deny(result)) && (a == 2 → result == 2) && (b == 2 → result == 2)
+}
+
+///| `result` is the negation of `a`.
+predicate negate_ok(a : Int, result : Int) {
+  (is_allow(a) → is_deny(result)) && (is_deny(a) → is_allow(result)) && (a == 2 → result == 2)
+}
+
+///|
+/// Engine boundary invariant: finalizing an effect never turns an abstain
+/// (or a deny) into an allow. `final` is what the transport layer may send.
+predicate fail_closed_exit(eff : Int, final : Bool) {
+  (non_allow(eff) → final == false) && (is_allow(eff) → final == true)
+}
+
+///| Conjunction commutes.
+lemma and_commutative(a : Int, b : Int) where {
+  proof_ensure: combine_and(a, b) == combine_and(b, a),
+} {}
+
+///| Disjunction commutes.
+lemma or_commutative(a : Int, b : Int) where {
+  proof_ensure: combine_or(a, b) == combine_or(b, a),
+} {}
+
+///| Conjunction associates.
+lemma and_associative(a : Int, b : Int, c : Int) where {
+  proof_ensure: combine_and(combine_and(a, b), c) == combine_and(a, combine_and(b, c)),
+} {}
+
+///| Disjunction associates.
+lemma or_associative(a : Int, b : Int, c : Int) where {
+  proof_ensure: combine_or(combine_or(a, b), c) == combine_or(a, combine_or(b, c)),
+} {}
+
+///| ALLOW is the identity of conjunction.
+lemma and_identity(a : Int) where {
+  proof_ensure: combine_and(a, 0) == a,
+} {}
+
+///| DENY is the identity of disjunction.
+lemma or_identity(a : Int) where {
+  proof_ensure: combine_or(a, 1) == a,
+} {}
+
+///| Both operations are idempotent.
+lemma and_idempotent(a : Int) where {
+  proof_ensure: combine_and(a, a) == a,
+} {}
+
+///|
+lemma or_idempotent(a : Int) where {
+  proof_ensure: combine_or(a, a) == a,
+} {}
+
+///| Negation is an involution.
+lemma negate_involution(a : Int) where {
+  proof_ensure: negate(negate(a)) == a,
+} {}
+
+///| De Morgan (conjunction form).
+lemma de_morgan_and(a : Int, b : Int) where {
+  proof_ensure: negate(combine_and(a, b)) == combine_or(negate(a), negate(b)),
+} {}
+
+///| De Morgan (disjunction form).
+lemma de_morgan_or(a : Int, b : Int) where {
+  proof_ensure: negate(combine_or(a, b)) == combine_and(negate(a), negate(b)),
+} {}
+
+///| Disjunction distributes over conjunction.
+lemma or_distributes_over_and(a : Int, b : Int, c : Int) where {
+  proof_ensure: combine_or(a, combine_and(b, c)) == combine_and(combine_or(a, b), combine_or(a, c)),
+} {}
+
+///| Conjunction distributes over disjunction.
+lemma and_distributes_over_or(a : Int, b : Int, c : Int) where {
+  proof_ensure: combine_and(a, combine_or(b, c)) == combine_or(combine_and(a, b), combine_and(a, c)),
+} {}
+
+///|
+/// The boundary invariant, restated: finalizing an abstain yields a denial.
+lemma abstain_never_allows() where {
+  proof_ensure: fail_closed_exit(2, false),
+} {}

@@ -1,7 +1,10 @@
-// k8s/moon.pkg — AdmissionReview evaluation (pure, no HTTP).
+// k8s/moon.pkg — Kubernetes admission parser: AdmissionReview → engine Query.
 
 import {
   "moonbitlang/core/debug",
-  "moonbitlang/core/json",
-  "chnlkw/kunloria/auth",
+  "chnlkw/kunloria/engine",
 }
+
+import {
+  "moonbitlang/core/json",
+} for "test"

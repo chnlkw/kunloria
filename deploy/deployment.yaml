@@ -39,7 +39,7 @@ spec:
                     app.kubernetes.io/name: kunloria
       containers:
         - name: kunloria
-          image: ghcr.io/chnlkw/kunloria:0.1.0
+          image: ghcr.io/chnlkw/kunloria-rgw-tenant:dev
           imagePullPolicy: IfNotPresent
           args: []
           ports:
@@ -50,19 +50,8 @@ spec:
               value: "127.0.0.1" # only the TLS sidecar talks to us
             - name: KUNLORIA_PORT
               value: "8080"
-            - name: KUNLORIA_ADMIN_GROUPS
-              value: "admin"
-            - name: KUNLORIA_READER_GROUPS
-              value: "reader,readers"
-            - name: KUNLORIA_WRITER_GROUPS
-              value: "writer,writers"
-            - name: KUNLORIA_RISKY_CLUSTER_ROLES
-              value: "cluster-admin"
-            - name: KUNLORIA_ADMITTED_BINDINGS
-              value: "kube-system:deployer"
-            # Empty = enforce the admission policy in every namespace.
-            - name: KUNLORIA_ENFORCE_NAMESPACES
-              value: ""
+            # The policy is baked into this image (see examples/rgw-tenant);
+            # there are no policy environment variables (ADR-0001).
           resources:
             requests:
               cpu: 100m

@@ -9,12 +9,16 @@ RUN apt-get update \
 RUN curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
 ENV PATH="/root/.moon/bin:$PATH"
 WORKDIR /src
+# Which example (or your own main package) to embed; a deployment embeds
+# exactly one policy binary. docker build --build-arg EXAMPLE=rgw-tenant .
+ARG EXAMPLE=rgw-tenant
 # Restore dependencies first for better layer caching.
+RUN moon update
 COPY moon.mod ./
 COPY .mooncakes ./.mooncakes
-COPY moon.pkg auth ceph k8s proof server kunloria.mbt cmd ./
-RUN moon build --release --target native cmd/main \
- && cp _build/native/release/build/cmd/main/main.exe /out-kunloria
+COPY moon.pkg kunloria.mbt verdict engine k8s ceph server examples ./
+RUN moon build --release --target native "examples/${EXAMPLE}/main" \
+ && cp "_build/native/release/build/examples/${EXAMPLE}/main/main.exe" /out-kunloria
 
 # --- runtime stage ----------------------------------------------------------
 FROM debian:bookworm-slim

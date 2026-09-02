@@ -65,8 +65,9 @@ and answers `{"result": true|false}`.
 Kunloria also parses this shape and applies the convention:
 `user_id` doubles as the user's single group (its namespace), `method` maps
 GET/HEAD → read, PUT/POST → write, DELETE → delete-write. Grant elevated
-roles by listing user ids in the role group lists, e.g.
-`KUNLORIA_ADMIN_GROUPS=ceph-admins`.
+roles by listing user ids in the policy's role constants — see
+`examples/rgw-tenant/policy.mbt` (`admin_groups()`, `reader_groups()`,
+`writer_groups()`); policies are code, not environment (ADR-0001).
 
 ## 3. Policy matrix
 
@@ -84,8 +85,8 @@ Unknown verbs (e.g. `s3:CreateBucket`) are denied to every non-admin role.
 ```sh
 curl -s http://127.0.0.1:8080/v1/data/rgw/authz/allow \
   -H 'Content-Type: application/json' \
-  -d '{"input":{"user":{"id":"user1","groups":["groupA"]},"action":"s3:GetObject","resource":{"bucket":"b","object":"groupA/f"}}}'
-# -> {"result":true}   (with KUNLORIA_READER_GROUPS=groupA)
+  -d '{"input":{"user":{"id":"user1","groups":["readers","groupA"]},"action":"s3:GetObject","resource":{"bucket":"groupA","object":"f"}}}'
+# -> {"result":true}   (with groupA listed in the policy's reader groups)
 ```
 
 References: [Ceph RGW OPA integration](https://docs.ceph.com/en/latest/radosgw/opa/).
