@@ -71,6 +71,19 @@ formally verified*. Read-path authorization stays with native RBAC —
 the ecosystem consensus (neither Kyverno nor Gatekeeper implements the
 apiserver authorization webhook either).
 
+## Is kunloria right for you?
+
+An honest assessment — including what it costs you — lives in
+[docs/tradeoffs.md](docs/tradeoffs.md), each point tagged by evidence
+(fact in this repo / cited paper / inference). The short version:
+
+- **Choose it** when your pain is exactly write-path Kubernetes
+  admission plus S3/RGW authorization, your platform team reviews code,
+  and you want a fail-closed posture that is proved, not promised.
+- **Don't choose it** when your authorization is relationship-heavy
+  (shares, ownership graphs), policies must be maintained by
+  non-programmers, or you need hot-reloadable rules.
+
 ## Layout
 
 ```
@@ -91,6 +104,7 @@ docs/       adr, author guide, verification, deployment, rgw integration
 - [Verification](docs/verification.md) — what is proved and how to run it
 - [Deployment](docs/deployment.md) — webhook wiring, TLS, HA
 - [Ceph RGW integration](docs/ceph-rgw.md) — `rgw_use_opa_authz` setup
+- [Tradeoffs](docs/tradeoffs.md) — what you gain, what it costs, how to decide
 - [References & related work](docs/references.md) — annotated, verbatim-quoted
 
 ## Status
