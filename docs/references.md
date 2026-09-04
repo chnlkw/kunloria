@@ -2,11 +2,18 @@
 
 Kunloria stands on thirty-plus years of work on authorization logics,
 policy languages, and verified decision procedures. This file maps that
-landscape onto our design decisions.
+landscape relative to what kunloria does.
 
 Ground rules for this file, because an open-source project must be
-honest about its sources:
+honest about its sources and about itself:
 
+- **Provenance.** The decisions in ADR-0001 predate this survey; none
+  of the works below motivated them. This file was compiled afterwards
+  to position kunloria in the landscape. Accordingly, every "For
+  kunloria" note below states a *comparison* — what the source does and
+  what kunloria does — never a derivation or an endorsement. Where
+  kunloria's choice is untested against a paper's measurements, the
+  note says so.
 - Every quotation below is **verbatim** from a source fetched on
   **2026-09-04**. Curly quotes and line breaks are normalized to plain
   ASCII; nothing else is altered; `[...]` marks omission.
@@ -17,12 +24,12 @@ honest about its sources:
 
 ---
 
-## A. The decision algebra → `verdict/`
+## A. The decision algebra vs `verdict/`
 
-Kunloria's `Effect { Allow; Deny; Abstain }` Kleene lattice with
+Kunloria's `Effect { Allow; Deny; Abstain }` lattice with
 deny-dominating `and_`, allow-dominating `or_`, and a finalize step
-that turns `Abstain` into `Deny` (fail-closed) is a minimal descendant
-of the XACML decision model.
+that turns `Abstain` into `Deny` (fail-closed) sits in the design
+region XACML occupies.
 
 ### OASIS XACML 3.0 core specification (primary standard)
 
@@ -34,20 +41,23 @@ OASIS, *eXtensible Access Control Markup Language (XACML) Version 3.0*,
 > "Deny", "Indeterminate" or "NotApplicable", and (optionally) a set of
 > obligations and advice
 
+> If a rule evaluates to "False", then it returns a result of
+> "NotApplicable". If an error occurs when evaluating the rule, then
+> the rule returns a result of "Indeterminate".
+
 > C.2 Deny-overrides — This section defines the "Deny-overrides"
 > rule-combining algorithm of a policy and policy-combining algorithm of
 > a policy set. This combining algorithm makes use of the extended
 > "Indeterminate".
 
-**For kunloria:** XACML needs four values plus extended-Indeterminate
-because evaluation errors and "rule did not match" must be
-distinguishable inside a distributed XML pipeline. A compiled library
-does not have that constraint, so kunloria keeps three: `Abstain`
-covers both "no layer matched" and layers that decline, and
-`@engine.finalize` collapses it to `Deny` at the boundary — the same
-deny-biased posture as deny-overrides, with one value fewer to reason
-about. The 15 lemmas in `verdict/lattice.mbtp` pin this algebra down
-mechanically.
+**Comparison.** XACML distinguishes no-match ("NotApplicable") from
+evaluation error ("Indeterminate"), plus extended-Indeterminate
+variants for combining. Kunloria's `Abstain` collapses both cases into
+one value and `@engine.finalize` resolves it to `Deny` at the boundary;
+`and_`/`or_` play the role combining algorithms play in XACML. The
+truth tables of this collapse are pinned by tests in
+`engine/policy_test.mbt`; the algebra is proved in
+`verdict/lattice.mbtp`.
 
 ### The Logic of XACML
 
@@ -56,8 +66,9 @@ XACML*, LNCS, 2012. DOI
 [10.1007/978-3-642-35743-5_13](https://link.springer.com/chapter/10.1007/978-3-642-35743-5_13).
 *No quote — not openly accessible at access time.*
 
-**For kunloria:** one of the formal treatments of XACML's combining
-operators; the closest published cousin of `verdict/`'s truth tables.
+**Comparison.** A formal treatment of XACML's combining operators —
+the same corner of the design space `verdict/` addresses for a
+three-valued system.
 
 ### Kleene Algebra in the Archive of Formal Proofs
 
@@ -73,17 +84,15 @@ Isabelle AFP.
 > semirings, and expand them by axiomatisations of the Kleene star for
 > finite iteration and an omega operation for infinite iteration.
 
-**For kunloria:** our `#proof_pure` helpers in `verdict/lattice.mbt`
-and the lemma names in `lattice.mbtp` (commutativity, associativity,
-identities, idempotence, De Morgan, distribution) are exactly the
-Kleene-algebra axiom family this entry formalizes in Isabelle/HOL —
-independent evidence that this lemma set is the right machine-checked
-contract for a decision combinator library. We use Why3 (`moon prove`)
-instead of Isabelle because the MoonBit toolchain ships it.
+**Comparison.** The lemma names in `verdict/lattice.mbtp`
+(commutativity, associativity, identities, idempotence, De Morgan,
+distribution) name the same axiom family this AFP entry formalizes in
+Isabelle/HOL; kunloria checks its three-valued variant in Why3 via
+`moon prove`.
 
 ---
 
-## B. Verification-guided engines → the `verdict/` + `moon prove` loop
+## B. Verification-guided engines vs the `verdict/` + `moon prove` loop
 
 ### Cedar
 
@@ -93,7 +102,10 @@ for Expressive, Fast, Safe, and Analyzable Authorization (Extended
 Version)*, arXiv, 2024. <https://arxiv.org/abs/2403.04651>
 
 > Cedar is a new authorization policy language designed to be
-> ergonomic, fast, safe, and analyzable.
+> ergonomic, fast, safe, and analyzable. Rather than embed authorization
+> logic in an application's code, developers can write that logic as
+> Cedar policies and delegate access decisions to Cedar's evaluation
+> engine.
 
 > Cedar's design has been finely balanced to allow for a sound and
 > complete logical encoding, which enables precise policy analysis,
@@ -110,14 +122,16 @@ of Software Engineering (FSE Companion '24), 2024. DOI
 [10.1145/3663529.3663854](https://dl.acm.org/doi/10.1145/3663529.3663854).
 *No quote — ACM DL not openly accessible at access time.*
 
-**For kunloria:** the closest industrial relative. Cedar verifies the
-engine and keeps policy in an interpreted DSL so policies can be
-analyzed without a compiler; kunloria makes the opposite trade
-(ADR-0001): policy is host-language code that is type-checked and
-unit-tested before deploy, and what gets verified is the decision
-algebra every policy composes through. Reading Cedar's "refactoring
-does not change permissions" goal states cleanly what a future kunloria
-policy-diff tool would have to prove.
+**Comparison.** Cedar's abstract states a preference — "rather than
+embed authorization logic in an application's code" — that is the exact
+opposite of ADR-0001's choice; kunloria stands deliberately on the
+other side of that stated line. What the two share is the verification
+posture: Cedar models its language in Lean and proves properties of
+the design; kunloria proves its decision algebra in Why3
+(`verdict/lattice.mbtp`). Cedar additionally gets policy-level analysis
+from its logical encoding ("when refactoring a set of policies, the
+authorized permissions do not change"); kunloria has no equivalent
+today — the nearest artifact is truth-table tests per policy.
 
 ### Formal verification of Kubernetes access policies
 
@@ -137,17 +151,15 @@ Access, 2025. DOI
 > policies as first-order logic and uses an SMT solver to exhaustively
 > search for counter-examples [...]
 
-**For kunloria:** this line of work verifies the *configuration state
-of a cluster*; kunloria's `make prove` verifies the *decision algebra
-itself*, and `docs/verification.md` shows a policy author how to add
-properties of their own policy. The two are complementary: their
-counter-example search over deployed RBAC/admission rules is exactly
-what a kunloria deployment never accumulates, because policy is one
-reviewed function rather than thousands of YAML rules.
+**Comparison.** Their verification target is the *configuration state
+of a running cluster* (deployed RBAC and admission rules); kunloria's
+is the *decision algebra* plus whatever properties a policy author
+proves of their own function (`docs/verification.md`). The objects are
+different, and neither subsumes the other.
 
 ---
 
-## C. Policy-language lineage → ADR-0001 "policy is code, not a DSL"
+## C. Policy-language lineage vs ADR-0001
 
 ### The speaks-for calculus
 
@@ -165,11 +177,10 @@ Quoted from the author's page
 > also provide a logical language for access control lists and theories
 > for deciding whether requests should be granted.
 
-**For kunloria:** the founding move of the field — treat authorization
-as a logic, not a configuration format. Kunloria keeps the move but
-changes the host: the logic is a typed functional language, and
-`Subject { user, groups }` is the pragmatic subset of "speaks-for"
-that K8s and RGW actually authenticate.
+**Comparison.** ABLP treats authorization as a logic over principals
+speaking for principals. Kunloria's `Subject { user, groups }` carries
+no delegation reasoning; it is the flat subject that the Kubernetes
+and RGW authentication layers actually hand over.
 
 ### SecPAL
 
@@ -189,11 +200,10 @@ from the openly posted TR
 > policy expressiveness, and execution efficiency. The semantics
 > consists of just three deduction rules.
 
-**For kunloria:** SecPAL is the direct ancestor of Rego-style
-Datalog engines. Its "just three deduction rules" is the same economy
-kunloria aims at from the other side — three lattice combinators plus
-atoms, and no deduction engine at all because the host compiler does
-the evaluating.
+**Comparison.** SecPAL evaluates policies by deduction over logical
+clauses — the ancestor of Datalog-style engines such as Rego. Kunloria
+has no deduction engine: the host compiler evaluates an ordinary
+function, and composition is by three lattice combinators.
 
 ### Expressiveness limits
 
@@ -209,16 +219,16 @@ domain-specific languages, 2013. DOI
 [10.1145/2505351.2505354](https://dl.acm.org/doi/10.1145/2505351.2505354).
 *No quote — not openly accessible at access time.*
 
-**For kunloria:** the SACMAT paper frames what a policy language must
-be able to express; the Haskell paper is a precedent for the position
-ADR-0001 takes — authorization semantics encoded as typed functional
-programs rather than an interpreted DSL. Kunloria's answer to
-expressiveness is deliberately boring: any computation MoonBit can
-express, inside `Query -> Decision`.
+**Comparison.** The SACMAT paper asks what an ABAC *language* must be
+able to express; the Haskell paper encodes authorization semantics as
+typed functional programs rather than an interpreted DSL — the corner
+ADR-0001 also occupies. Kunloria's answer to the expressiveness
+question is uninteresting by design: anything the host language
+expresses, inside `Query -> Decision`.
 
 ---
 
-## D. Policy-as-Code empirics → the product thesis
+## D. Policy-as-Code empirics
 
 ### An Empirical Study of Policy as Code
 
@@ -236,10 +246,11 @@ Policy as Code: Adoption, Purpose, and Maintenance*, MSR 2026.
 > PaC based on 10,560 PaC files from 499 open-source repositories
 > spanning nine PaC tools.
 
-**For kunloria:** the field evidence ADR-0001 reasons from — PaC is
-real and spreading, but as thousands of small declarative files across
-nine tools. Kunloria's bet is the other corner of the design space:
-one typed, testable, provable function per deployment.
+**Comparison.** This study measures the declarative-file PaC landscape
+(many files, nine tools) that ADR-0001 departs from — one typed
+function per deployment. ADR-0001 predates this survey, so it is not
+evidence for that decision; whether the one-function structure avoids
+the maintenance costs this study measures has not been established.
 
 ### Reusing PaC across enforcement stages
 
@@ -254,10 +265,11 @@ Computers (MDPI), 2026. DOI
 > independently, potentially increasing maintenance effort and creating
 > opportunities for policy drift.
 
-**For kunloria:** this is kunloria's own deployment domain, measured:
-the same governance rule re-implemented per stage drifts apart. A
-kunloria policy is one MoonBit function that both fronts call, which
-is the reuse structure this paper finds missing.
+**Comparison.** The measured problem is governance rules implemented
+independently per enforcement stage drifting apart. In kunloria both
+fronts call the same `policy` function, so the reuse structure is
+different; whether that prevents the measured drift is not established
+here.
 
 ### Governed GitOps
 
@@ -274,13 +286,13 @@ Analysis and Applications 34(12), 2025. DOI
 > including configuration drift, compliance friction, and subjective
 > release decisions.
 
-**For kunloria:** the academic sketch of the delivery channel kunloria
-already assumes — git as the source of truth, controllers reconciling,
-policy enforced continuously rather than reviewed periodically.
+**Comparison.** Describes the delivery channel kunloria assumes — git
+as source of truth, controllers reconciling, policy enforced
+continuously.
 
 ---
 
-## E. Embedded-engine precedents → the library shape
+## E. Embedded-engine precedents vs the library shape
 
 ### oso / Polar
 
@@ -294,11 +306,9 @@ policy enforced continuously rather than reviewed periodically.
 > (RBAC) and relationships using Oso's built-in primitives. Extend them
 > however you need with Oso's declarative policy language, Polar.
 
-**For kunloria:** the precedent for "authorization as a library you
-embed" — and a cautionary data point: oso grew a DSL (Polar) and later
-moved toward relationship-based FGA. Kunloria's reading is that the
-DSL step is exactly where type-checking and ordinary tooling are lost,
-which is why ADR-0001 declines it.
+**Comparison.** oso embeds as a library but couples it with a DSL,
+Polar; kunloria embeds without a DSL (ADR-0001). The projects made
+different choices; this entry records the neighbor, not a verdict.
 
 ### Margrave
 
@@ -307,14 +317,14 @@ Brown PLT. <http://www.margrave-tool.org/v1+v2/margrave/>
 
 > An API for XACML Policy Verification and Change Analysis
 
-**For kunloria:** the reference shape for the analysis tooling kunloria
-does not have yet — ask "what decisions changed?" of a policy edit.
-A kunloria answer would diff truth-table outputs, which is cheap
-because policies are functions.
+**Comparison.** Answers "what decisions changed?" over XACML policy
+edits. Kunloria has no such tool; the cheap nearest artifact is
+diffing truth-table outputs of a policy function before and after an
+edit.
 
 ---
 
-## F. Centralized scale-out → what kunloria is not
+## F. Centralized scale-out vs what kunloria is not
 
 ### Zanzibar
 
@@ -332,10 +342,10 @@ Consistent, Global Authorization System*, USENIX ATC '19.
 > lists and object contents. Zanzibar scales to trillions of access
 > control lists and millions of authorization requests per second [...]
 
-**For kunloria:** the centralized-service pole of the design space.
-Zanzibar-class systems own relationship data for whole fleets; kunloria
-is an embedded, write-path, per-deployment decision function that
-complements rather than replaces them.
+**Comparison.** Zanzibar-class systems are centralized stores of
+relationship data serving whole fleets. Kunloria is a per-deployment,
+stateless decision function for two write-path fronts; it does not
+store relationships or serve read-path authorization.
 
 ### SpiceDB on consistency
 
@@ -347,8 +357,7 @@ complements rather than replaces them.
 > Strong consistency is key to ensuring correctness, but caching is
 > necessary for performance.
 
-**For kunloria:** the hardest problem of the centralized pole —
-consistent caching across a global relationship store — is a problem
-kunloria structurally does not have: a policy deployment is stateless,
-and its fail-closed boundary (`Abstain` → `Deny`, malformed → 400 →
-denied) is local and deterministic.
+**Comparison.** The caching-versus-consistency tension these systems
+manage arises from centralized state. A kunloria deployment holds no
+state; its fail-closed boundary (`Abstain` → `Deny`, malformed → 400 →
+denied) is a local, deterministic function of the request.
