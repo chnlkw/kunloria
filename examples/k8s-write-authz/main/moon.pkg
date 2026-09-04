@@ -1,9 +1,7 @@
-// examples/k8s-write-authz/main/moon.pkg — entry point for the k8s-write-authz example.
+// examples/k8s-write-authz/main/moon.pkg — entry point for the example.
 
 import {
   "moonbitlang/async",
-  "moonbitlang/core/json",
-  "moonbitlang/moonback",
   "chnlkw/kunloria/server",
   "chnlkw/kunloria/examples/k8s-write-authz" @app,
 }

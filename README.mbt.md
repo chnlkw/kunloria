@@ -28,8 +28,9 @@ and (optionally) formally proven before it deploys.
 - **`k8s/`, `ceph/`** — parsers lowering AdmissionReview (including
   `userInfo`, GVK/GVR, full object) and both RGW payload shapes into
   `Query`; malformed input is rejected fail-closed.
-- **`server/`** — moonback HTTP wiring, structured JSON logs, Prometheus
-  counters. Bring a policy; get `/healthz`, `/metrics`, `/validate`
+- **`server/`** — HTTP wiring, structured JSON logs, Prometheus
+  counters, and a one-line boot (`async fn main { @server.run(policy) }`).
+  Bring a policy; get `/healthz`, `/metrics`, `/validate`
   (AdmissionReview with 403 + reason on denial) and
   `/v1/data/rgw/authz/allow` (`{"result": bool}`, OPA-compatible for
   `rgw_use_opa_authz`).

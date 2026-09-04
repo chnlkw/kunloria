@@ -54,16 +54,6 @@ fn satisfies(pred : (@engine.Query) -> Bool, why : String) -> @engine.Policy {
 }
 
 ///|
-/// A tenant may act inside the namespace named after one of its groups.
-fn tenant_in_own_ns(q : @engine.Query) -> Bool {
-  if q.ns() is Some(ns) {
-    q.subject.groups.contains(ns)
-  } else {
-    false
-  }
-}
-
-///|
 /// The assembled policy.
 pub fn policy(q : @engine.Query) -> @engine.Decision {
   @engine.otherwise(
@@ -76,9 +66,9 @@ pub fn policy(q : @engine.Query) -> @engine.Decision {
       // 2. platform admins: everything else goes
       @engine.and_(@engine.subject_in_group("platform"), @engine.allow_all),
       @engine.otherwise(
-        // 3. tenants: free inside their own namespace
+        // 3. tenants: free inside their own namespace (either front end)
         @engine.scoped(
-          tenant_in_own_ns,
+          q => q.in_own_namespace(),
           @engine.allow_all,
           reason="subject has no group matching the target namespace",
         ),

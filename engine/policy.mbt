@@ -134,20 +134,12 @@ pub fn k8s_resource_is(resource : String) -> Policy {
 pub fn rgw_path_in_group_ns() -> Policy {
   q => {
     match q.rgw_path() {
-      Some(path) => {
-        let mut in_ns = false
-        for group in q.subject.groups {
-          if path_in_namespace(path, group) {
-            in_ns = true
-            break
-          }
-        }
-        if in_ns {
+      Some(path) =>
+        if path_in_any_namespace(path, q.subject.groups) {
           Decision::allow("path \{path} inside a group namespace")
         } else {
           Decision::abstain()
         }
-      }
       None => Decision::abstain()
     }
   }

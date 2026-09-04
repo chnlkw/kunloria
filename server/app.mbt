@@ -76,3 +76,26 @@ fn ip_of(req : @moonback.Request) -> String {
     None => ""
   }
 }
+
+///|
+/// Boot the entire deployment for one policy: environment settings,
+/// metrics, route wiring, the boot log line, then block serving. The
+/// whole entry point of a kunloria service is
+/// `async fn main { @server.run(policy) }` — everything else (env vars,
+/// routes, fail-closed parsing, logs, metrics) is the engine's job.
+pub async fn run(policy : @engine.Policy, name? : String = "kunloria") -> Unit {
+  let settings = AppSettings::from_env()
+  let metrics = Metrics::new()
+  let app = @moonback.App(root_module(policy, metrics))
+  defer app.close()
+  let server = @moonback.listen(
+    host=settings.host,
+    port=settings.port.to_uint16(),
+  )
+  let boot : Map[String, Json] = Map([])
+  boot.set("service", Json::string(name))
+  boot.set("host", Json::string(settings.host))
+  boot.set("port", Json::number(settings.port.to_double()))
+  log_json("info", "\{name} listening", boot)
+  app.serve(server)
+}

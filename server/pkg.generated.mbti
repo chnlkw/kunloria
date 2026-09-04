@@ -27,6 +27,8 @@ pub fn next_request_id() -> String
 
 pub fn root_module((@engine.Query) -> @engine.Decision, Metrics) -> @moonback.Module
 
+pub async fn run((@engine.Query) -> @engine.Decision, name? : String) -> Unit
+
 // Errors
 
 // Types and methods

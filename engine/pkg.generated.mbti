@@ -38,6 +38,8 @@ pub fn or_decision(Decision, Decision) -> Decision
 
 pub fn otherwise((Query) -> Decision, (Query) -> Decision) -> (Query) -> Decision
 
+pub fn path_in_any_namespace(String, Array[String]) -> Bool
+
 pub fn path_in_namespace(String, String) -> Bool
 
 pub fn rgw_path_in_group_ns() -> (Query) -> Decision
@@ -94,6 +96,7 @@ pub(all) struct Query {
   target : Target
   object : Json?
 }
+pub fn Query::in_own_namespace(Self) -> Bool
 pub fn Query::ns(Self) -> String?
 pub fn Query::rgw_path(Self) -> String?
 

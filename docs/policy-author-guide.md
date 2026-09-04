@@ -6,6 +6,52 @@ parsing, logging, metrics, the fail-closed boundary).
 
 This guide walks through the pieces you will touch.
 
+## Installing
+
+```sh
+moon add chnlkw/kunloria
+moon add moonbitlang/async
+```
+
+`moonbitlang/async` is the only extra declaration — it drives
+`async fn main`. The HTTP stack (moonback) is absorbed by the server
+package, so nothing else shows up in your manifest. A deployment is two
+packages and three lines of `main`.
+
+`policy/moon.pkg` — the policy library:
+
+```moonbit skip
+import {
+  "chnlkw/kunloria/engine",
+  "chnlkw/kunloria/k8s", // only if you use content predicates
+}
+```
+
+`main/moon.pkg` — the executable:
+
+```moonbit skip
+import {
+  "moonbitlang/async",
+  "chnlkw/kunloria/server",
+  "<you>/<module>/policy" @app,
+}
+
+pkgtype(kind: "executable")
+```
+
+`main/main.mbt` — the entire entry point:
+
+```moonbit skip
+async fn main {
+  @server.run(@app.policy, name="my-agent")
+}
+```
+
+`run` reads `KUNLORIA_HOST/PORT/LOG_LEVEL`, wires routes, logging and
+metrics, and blocks serving. The container image and Kubernetes
+manifests are not part of the published module — copy `Dockerfile` and
+`deploy/` from the [repository](https://github.com/chnlkw/kunloria).
+
 ## The one function
 
 ```moonbit skip
@@ -25,9 +71,9 @@ pub fn policy(q : @engine.Query) -> @engine.Decision {
     @engine.and_(@engine.subject_in_group("platform"), @engine.allow_all),
     @engine.otherwise(
       @engine.scoped(
-        q => q.ns() is Some(ns) && q.subject.groups.contains(ns),
+        q => q.in_own_namespace(),
         @engine.allow_all,
-        reason="subject has no group matching the target namespace",
+        reason="subject is not acting inside its own namespace",
       ),
       @engine.deny_all,
     ),
@@ -46,7 +92,7 @@ the same way:
 | 2 | **Layers in priority order** — constraints that bind everyone on top (the `satisfies` idiom below), then allow layers most-privileged-first, `deny_all` last | priority lives in the layer order, never in scattered early returns |
 | 3 | **Dispatch with `match`, fall back with `otherwise`** — an exhaustive `match` when layers switch on data (role, source); `otherwise` when layers are fallbacks | either way the compiler checks you covered every case |
 | 4 | **Categories are enums, not strings** — anything you branch on is an enum plus an exhaustive match | a mistyped string compiles; a missed enum case does not |
-| 5 | **Gates are named predicates** — `fn path_in_any_group_ns(path, groups) -> Bool`, never a `let mut` flag with a loop inside the decision | decisions stay declarative |
+| 5 | **Gates are named predicates** — `q.in_own_namespace()` (engine, both front ends) or your own `-> Bool` fn; never a `let mut` flag with a loop inside the decision | decisions stay declarative |
 | 6 | **Atoms for leaves, helpers for computation** — prefer engine atoms; a named `-> Bool` predicate when a layer computes; a small `-> Decision` helper only when the layer needs computed data or dynamic denial reasons (role matrices, joined paths) | helpers stay small and named after the layer they decide |
 | 7 | **Every denial says why**, with the facts interpolated (path, verb, role) | denial reasons are the policy's UI — they surface verbatim in 403s and logs |
 | 8 | **Knobs live at the top** — group lists and allow lists as const-style accessor functions, grouped in one place | one place to edit, one diff to review |
@@ -73,7 +119,11 @@ everyone; a reader of either file sees that in rule 1, not in the code.
 | `object` | the full admitted object as `Json?` — present only for admission requests |
 
 Helpers: `q.ns()`, `q.rgw_path()`
-(`"<bucket>/<object>"`), `@engine.path_in_namespace(path, group)`.
+(`"<bucket>/<object>"`), `@engine.path_in_namespace(path, group)` and
+`path_in_any_namespace(path, groups)`, and the cross-front-end tenant
+gate `q.in_own_namespace()` — on Kubernetes "the target namespace is
+one of my groups", on RGW "the path lies under one of my groups"; one
+predicate, both meanings.
 
 ## Atoms
 
@@ -137,12 +187,67 @@ an allow*.
 Malformed payloads answer **400**, which both fronts treat as a denial —
 fail-closed parsing is the engine's job, not yours.
 
-`main.mbt` is a dozen lines (see any example); the only configuration is
+`main.mbt` is three lines — `async fn main { @server.run(policy) }`
+(see [Installing](#installing)); the only configuration is
 `KUNLORIA_HOST`, `KUNLORIA_PORT`, `KUNLORIA_LOG_LEVEL`. **Policy is
 never configuration** (ADR-0001): constants live in `policy.mbt`, and
 changes ship through your GitOps pipeline as a new image.
 
 ## Testing and proving your policy
+
+`Query` is `pub(all)`, so tests construct it directly. Keep one
+factory per front end next to your policy — then every rule is a
+one-line truth-table row:
+
+```moonbit skip
+///|
+fn k8s_q(
+    user : String,
+    groups : Array[String],
+    ns~ : String,
+    object? : Json? = None,
+  ) -> @engine.Query {
+  @engine.Query::{
+    source: @engine.Source::K8sAdmission,
+    subject: @engine.Subject::{ user, groups },
+    verb: "create",
+    kind: @engine.AccessKind::WriteAccess,
+    target: @engine.Target::K8s(@engine.K8sRef::{
+      api_group: "",
+      kind: "Pod",
+      resource: "pods",
+      subresource: "",
+      name: "",
+      ns,
+    }),
+    object,
+  }
+}
+
+///|
+fn rgw_q(
+    user : String,
+    groups : Array[String],
+    bucket~ : String,
+    object? : String = "",
+  ) -> @engine.Query {
+  @engine.Query::{
+    source: @engine.Source::Rgw,
+    subject: @engine.Subject::{ user, groups },
+    verb: "s3:getobject",
+    kind: @engine.AccessKind::ReadAccess,
+    target: @engine.Target::Rgw(@engine.RgwRef::{ bucket, object_key: object }),
+    object: None,
+  }
+}
+
+test "tenant inside, outside" {
+  assert_true(policy(k8s_q("dev", ["team-a"], ns="team-a"))
+    .effect is @engine.Effect::Allow)
+  assert_true(policy(k8s_q("dev", ["team-a"], ns="team-b"))
+    .effect is @engine.Effect::Deny)
+}
+```
 
 Write blackbox tests against `policy` directly (`*_test.mbt`) — every
 example ships its truth tables this way. For properties, mirror the

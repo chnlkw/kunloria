@@ -93,17 +93,6 @@ fn has_any(groups : Array[String], wanted : Array[String]) -> Bool {
 }
 
 ///|
-/// Whether `path` lies inside the namespace of one of `groups`.
-fn path_in_any_group_ns(path : String, groups : Array[String]) -> Bool {
-  for g in groups {
-    if @engine.path_in_namespace(path, g) {
-      return true
-    }
-  }
-  false
-}
-
-///|
 /// Whether the admitted ServiceAccount subject is on the allow list.
 fn binding_subject_admitted(binding : Json) -> Bool {
   if binding is { "subjects": Array(subjects), .. } {
@@ -143,7 +132,7 @@ pub fn policy(q : @engine.Query) -> @engine.Decision {
 /// readers read, writers write, nobody else acts.
 fn rgw_decision(q : @engine.Query, role : Role) -> @engine.Decision {
   let path = q.rgw_path().unwrap_or("")
-  if !path_in_any_group_ns(path, q.subject.groups) {
+  if !@engine.path_in_any_namespace(path, q.subject.groups) {
     return @engine.Decision::deny(
       "resource \{path} is outside every group namespace of the subject",
     )

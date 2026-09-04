@@ -75,6 +75,43 @@ pub fn Query::ns(self : Query) -> String? {
 }
 
 ///|
+/// Whether `path` lies inside the namespace of one of `groups`.
+pub fn path_in_any_namespace(path : String, groups : Array[String]) -> Bool {
+  for g in groups {
+    if path_in_namespace(path, g) {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Whether the subject acts inside its own namespace on either front end:
+/// on Kubernetes the target namespace is one of its groups; on RGW the
+/// resource path lies inside one of its group namespaces. Everything
+/// else — other namespaces, other buckets, unrecognized targets — is out
+/// of scope. This is the one gate that means the same thing on both
+/// fronts, so "a tenant may act inside its own namespace" is a single
+/// predicate instead of a per-source `match`.
+pub fn Query::in_own_namespace(self : Query) -> Bool {
+  match self.target {
+    K8s(_) =>
+      if self.ns() is Some(ns) {
+        self.subject.groups.contains(ns)
+      } else {
+        false
+      }
+    Rgw(_) =>
+      if self.rgw_path() is Some(path) {
+        path_in_any_namespace(path, self.subject.groups)
+      } else {
+        false
+      }
+    Unrecognized(_) => false
+  }
+}
+
+///|
 /// Hierarchical RGW resource path: `"<bucket>/<object_key>"`, or just the
 /// bucket name for bucket-level operations. Group namespaces are matched
 /// against this joined path, so a group "team-a" owns bucket `team-a` and
