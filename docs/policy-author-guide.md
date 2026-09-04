@@ -35,6 +35,32 @@ pub fn policy(q : @engine.Query) -> @engine.Decision {
 }
 ```
 
+## Style: numbered rules, layered decisions
+
+Every policy in this repo follows one canon, so any `policy.mbt` reads
+the same way:
+
+| # | Rule | Why |
+| --- | --- | --- |
+| 1 | **Plain words first** — the file header states the policy as numbered rules, most powerful first; `policy()` carries the same numbers as inline comments | a reviewer reads the header for intent and the numbered lines to check the code |
+| 2 | **Layers in priority order** — constraints that bind everyone on top (the `satisfies` idiom below), then allow layers most-privileged-first, `deny_all` last | priority lives in the layer order, never in scattered early returns |
+| 3 | **Dispatch with `match`, fall back with `otherwise`** — an exhaustive `match` when layers switch on data (role, source); `otherwise` when layers are fallbacks | either way the compiler checks you covered every case |
+| 4 | **Categories are enums, not strings** — anything you branch on is an enum plus an exhaustive match | a mistyped string compiles; a missed enum case does not |
+| 5 | **Gates are named predicates** — `fn path_in_any_group_ns(path, groups) -> Bool`, never a `let mut` flag with a loop inside the decision | decisions stay declarative |
+| 6 | **Atoms for leaves, helpers for computation** — prefer engine atoms; a named `-> Bool` predicate when a layer computes; a small `-> Decision` helper only when the layer needs computed data or dynamic denial reasons (role matrices, joined paths) | helpers stay small and named after the layer they decide |
+| 7 | **Every denial says why**, with the facts interpolated (path, verb, role) | denial reasons are the policy's UI — they surface verbatim in 403s and logs |
+| 8 | **Knobs live at the top** — group lists and allow lists as const-style accessor functions, grouped in one place | one place to edit, one diff to review |
+| 9 | **Truth tables pin every rule** — each numbered rule gets at least one allow and one deny test in `policy_test.mbt` | refactors cannot silently drift |
+
+The two skeletons the canon allows, both in `examples/`:
+
+- `k8s-write-authz` — fallback tower: `otherwise(and_(constraints), otherwise(admin, otherwise(tenant, deny_all)))`. Use when layers are priorities.
+- `rgw-tenant` — data dispatch: `match (role, source) { (Admin, _) => ..., (role, Rgw) => ..., (_, K8sAdmission) => ... }` with one small `-> Decision` helper per branch. Use when the first cut of the decision is *which case is this?*
+
+Both state their per-deployment choices in the header — `rgw-tenant`
+lets admins bypass the content constraints, `k8s-write-authz` binds
+everyone; a reader of either file sees that in rule 1, not in the code.
+
 ## What a Query carries
 
 | Field | Meaning |

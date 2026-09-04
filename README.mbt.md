@@ -44,15 +44,17 @@ curl -s localhost:8080/healthz
 ```
 
 Write your own policy: copy `examples/minimal`, edit its `policy.mbt`,
-run. See the [policy author guide](docs/policy-author-guide.md).
+run. See the [policy author guide](docs/policy-author-guide.md) — it
+fixes the house style (numbered rules, layered decisions) every
+`policy.mbt` in this repo follows.
 
 ## Examples
 
 | Example | Shows |
 | --- | --- |
 | `examples/minimal` | the smallest deployable policy (deny everything) |
-| `examples/rgw-tenant` | the classic three-role / group-prefix tenant model with K8s content constraints |
-| `examples/k8s-write-authz` | subject-based write-path authorization assembled from combinators |
+| `examples/rgw-tenant` | the classic three-role / group-prefix tenant model — the `match`-dispatch skeleton |
+| `examples/k8s-write-authz` | subject-based write-path authorization — the `otherwise`-fallback skeleton |
 
 ```sh
 docker build --build-arg EXAMPLE=k8s-write-authz -t kunloria-example .
