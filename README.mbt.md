@@ -91,6 +91,7 @@ docs/       adr, author guide, verification, deployment, rgw integration
 - [Verification](docs/verification.md) — what is proved and how to run it
 - [Deployment](docs/deployment.md) — webhook wiring, TLS, HA
 - [Ceph RGW integration](docs/ceph-rgw.md) — `rgw_use_opa_authz` setup
+- [References & related work](docs/references.md) — annotated, verbatim-quoted
 
 ## Status
 
